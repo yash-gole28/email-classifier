@@ -1,23 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { fetchEmails } from '../utils/fetchEmails';
 import Link from 'next/link';
 
 export default function Home() {
   const [emails, setEmails] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const { data: session } = useSession();
 
+  // Load emails from local storage on initial render
+  useEffect(() => {
+    const storedEmails = localStorage.getItem('emails');
+    if (storedEmails) {
+      setEmails(JSON.parse(storedEmails));
+    }
+  }, []);
+
+  // Save emails to local storage whenever emails state changes
+  useEffect(() => {
+    localStorage.setItem('emails', JSON.stringify(emails));
+  }, [emails]);
+
   const handleFetchEmails = async () => {
+    setLoading(true);
+    setError(null);
     try {
       if (session?.user?.accessToken) {
         const fetchedEmails = await fetchEmails(session.user.accessToken);
-        console.log(fetchedEmails)
         setEmails(fetchedEmails);
+      } else {
+        setError('No access token available.');
       }
     } catch (error) {
       console.error('Error fetching emails:', error);
+      setError('Failed to fetch emails');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -28,7 +49,10 @@ export default function Home() {
           <>
             <h1 className="text-2xl text-black mb-4">Welcome, {session.user.name}</h1>
             <h1 className="text-2xl text-black mb-4">Email: {session.user.email}</h1>
-            <button onClick={handleFetchEmails} className="px-4 py-2 bg-blue-600 text-white rounded">Fetch Emails</button>
+            <button onClick={handleFetchEmails} className="px-4 py-2 bg-blue-600 text-white rounded">
+              {loading ? 'Fetching...' : 'Fetch Emails'}
+            </button>
+            {error && <p className="text-red-500 mt-4">{error}</p>}
             {emails.length > 0 && (
               <div className="mt-8">
                 <h2 className="text-xl text-blue-500 font-bold mb-4">Fetched Emails</h2>
@@ -52,7 +76,7 @@ export default function Home() {
             )}
           </>
         ) : (
-          <Link href='/api/auth/signin' className="text-2xl mb-4 text-black">Sign In</Link>
+          <Link href="/api/auth/signin" className="text-2xl mb-4 text-black">Sign In</Link>
         )}
       </div>
     </div>

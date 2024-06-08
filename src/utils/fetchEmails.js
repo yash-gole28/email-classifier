@@ -1,5 +1,3 @@
-// utils/fetchEmails.js
-
 import axios from 'axios';
 
 // Function to fetch emails from Gmail API
@@ -18,15 +16,23 @@ export async function fetchEmails(accessToken) {
 
     // Fetch individual email details
     const emailPromises = emails.map(async (email) => {
-      const res = await axios.get(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.id}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      return {
-        subject: res.data.payload.headers.find(header => header.name === 'Subject')?.value,
-        from: res.data.payload.headers.find(header => header.name === 'From')?.value,
-      };
+      try {
+        const res = await axios.get(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.id}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        return {
+          subject: res.data.payload.headers.find(header => header.name === 'Subject')?.value || 'No Subject',
+          from: res.data.payload.headers.find(header => header.name === 'From')?.value || 'Unknown Sender',
+        };
+      } catch (error) {
+        console.error(`Error fetching details for email ID ${email.id}:`, error.response ? error.response.data : error.message);
+        return {
+          subject: 'Error fetching subject',
+          from: 'Error fetching sender',
+        };
+      }
     });
 
     // Wait for all emails to be fetched
