@@ -1,32 +1,31 @@
-import openai from 'openai';
+import axios from 'axios';
 
-// Function to classify emails using OpenAI's GPT model
-export async function classifyEmails(apiKey, emails) {
+const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY; // Replace with your actual API key
+const apiUrl = 'https://api.openai.com/v1/completions';
+
+export async function classifyEmails(emails, maxTokens) {
   try {
-    // Initialize OpenAI client with the provided API key
-    const openaiClient = new openai.OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+    if (!Array.isArray(emails)) {
+      throw new Error('Input emails is not an array');
+    }
 
-    // Prepare text prompts for all emails
     const textPrompts = emails.map((email) => `Classification:\n"${email.subject}"\n"${email.body}"\n`).join('\n');
-
-    // Call OpenAI's GPT model to generate text completions for all emails
-    const response = await openaiClient.completions.create({
-      model: 'davinci-002', // Specify an available GPT model
+    const response = await axios.post(apiUrl, {
+      model : 'gpt-3.5-turbo',
       prompt: textPrompts,
-      max_tokens: emails.length, // Adjust as needed
-      temperature: 0.5, // Adjust as needed
-      stop: ['\n\n'], // Stop generation at new email
+      max_tokens: maxTokens,
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      }
     });
 
-    // Extract generated texts from model response
-    const generatedTexts = response.data.choices.map((choice) => choice.text.trim().split('\n'));
-
-    // Update emails with priorities
-    const classifiedEmails = emails.map((email, index) => ({ ...email, priority: generatedTexts[index] }));
-
-    return classifiedEmails;
+    return response.data.choices.map(choice => choice.text.trim());
   } catch (error) {
-    console.error('Error classifying emails:', error);
-    throw error;
+    console.error('Error:', error);
+    return null;
   }
 }
+
+// Usage example
